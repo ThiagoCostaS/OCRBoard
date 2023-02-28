@@ -26,7 +26,8 @@ class MainActivity : AppCompatActivity() {
     var button_close: Button? = null
     val RequestCameraPermission = 1001
 
-    val regex = Regex("[A-Z]{3}[0-9][0-9A-Z][0-9]{2}")
+    val mercosulRegex = Regex("[A-Z]{3}[0-9][A-Z][0-9]{2}")
+    val normalRegex = Regex("[A-Z]{3}[0-9]{4}")
 
     // 3
     override fun onRequestPermissionsResult(
@@ -60,7 +61,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         cameraView = findViewById(R.id.surface_view)
         textView = findViewById(R.id.text_view)
-        button = findViewById(R.id.button_camera)
+        button = findViewById<Button?>(R.id.button_camera).apply {
+            setOnClickListener {
+                openCamera()
+            }
+        }
 
         // 1
         val textRecognizer = TextRecognizer.Builder(applicationContext).build()
@@ -74,23 +79,7 @@ class MainActivity : AppCompatActivity() {
                 .build()
             cameraView?.holder?.addCallback(object : SurfaceHolder.Callback {
                 override fun surfaceCreated(holder: SurfaceHolder) {
-                    try {
-                        if (ActivityCompat.checkSelfPermission(
-                                applicationContext,
-                                Manifest.permission.CAMERA
-                            ) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            ActivityCompat.requestPermissions(
-                                this@MainActivity, arrayOf(Manifest.permission.CAMERA),
-                                RequestCameraPermission
-                            )
-                        }
-                        cameraSource?.let {
-                            it.start(cameraView?.holder)
-                        }
-                    } catch (e: IOException) {
-                        e.printStackTrace()
-                    }
+                    openCamera()
                 }
 
                 override fun surfaceChanged(
@@ -122,17 +111,46 @@ class MainActivity : AppCompatActivity() {
 
                             val text = stringBuilder.toString()
 
-                            if(regex.matches(text)) {
+                            val mercosulResult = mercosulRegex.find(text)
+                            val normalResult = normalRegex.find(text)
+
+                            if (mercosulResult != null) {
                                 textView?.setTextColor(Color.GREEN)
                                 cameraSource?.stop()
+                                textView?.text = mercosulResult.value
+                            } else if (normalResult != null) {
+                                textView?.setTextColor(Color.BLUE)
+                                cameraSource?.stop()
+                                textView?.text = normalResult.value
                             } else {
                                 textView?.setTextColor(Color.RED)
+                                textView?.text = text
                             }
-                            textView?.text = text
+
                         }
                     }
                 }
             })
+        }
+    }
+
+    private fun openCamera() {
+        try {
+            if (ActivityCompat.checkSelfPermission(
+                    applicationContext,
+                    Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this@MainActivity, arrayOf(Manifest.permission.CAMERA),
+                    RequestCameraPermission
+                )
+            }
+            cameraSource?.let {
+                it.start(cameraView?.holder)
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
         }
     }
 }
